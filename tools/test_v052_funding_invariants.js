@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..');
-const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v051.html');
+const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v052.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
 function extractObjectDeclaration(source, name) {
@@ -155,4 +155,4 @@ const blankState = (over = {}) => ({ ptec: [], padm: [], viagens: [], soft: [], 
   assert.match(optMainSrc, /_assessResult\(records\)/, 'deve avaliar viabilidade e oferecer reversão');
 }
 
-console.log('test_v051_funding_invariants: OK');
+console.log('test_v052_funding_invariants: OK');

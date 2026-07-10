@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..');
-const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v051.html');
+const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v052.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
 function extractObjectDeclaration(source, name) {
@@ -265,4 +265,4 @@ runMacroOptimizerTests();
 runExportStructureChecks();
 runOptimizerVisibilityCheck();
 runOptimizerQualityCheck();
-console.log('OK: regras de contribuição, multi-macro, reversão, inteiros e exportação v051.');
+console.log('OK: regras de contribuição, multi-macro, reversão, inteiros e exportação v052.');

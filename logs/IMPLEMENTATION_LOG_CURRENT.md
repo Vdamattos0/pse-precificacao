@@ -232,6 +232,16 @@ V51 auditoria pré-lançamento (multi-fomento, tiers, rede de testes):
 - Nenhuma fórmula de `CALC`/`FUNDING_POLICY` alterada na essência (calcIndirects dirigido por regime, idêntico para fomento único).
 - Detalhes: `IMPLEMENTATION_LOG_CODEX_V051_PRELAUNCH_AUDIT.md`.
 
+V52 gestores de aprovação ESP (Leonardo Teixeira):
+- Adicionado Leonardo Teixeira como gestor de aprovação da equipe ESP, em adição à sua equipe de origem CIN.
+- Removidos os antigos gestores da equipe ESP Stefano Ferrari e Ana Carolina Spindola da lista de aprovadores do sistema e de bases virgens.
+- Sincronização automática na carga do banco de dados (DB) para garantir que Leonardo Teixeira pertença a ambas as equipes e que Stefano Ferrari e Ana Carolina Spindola sejam excluídos/inativados.
+- Habilitada navegação "Início" no cabeçalho/logotipo e fechamento inteligente do painel "Nova Proposta".
+- Adicionado botão de edição (lápis) ao lado do título para reconfiguração completa de metadados do projeto (inclusive fomento).
+- Adicionado papel de desenvolvedor (`dev-II`) para Vivian de Mattos (`vdmattos@firjan.com.br`) com permissões para excluir qualquer proposta e editar dados de qualquer projeto (mesmo aprovados).
+- Arquivos de teste e scripts atualizados para v052, incluindo a suíte de testes de permissão `test_v052_dev_ii_permissions.js`.
+- Detalhes: `IMPLEMENTATION_LOG_CODEX_V052_ESP_APPROVERS.md`.
+
 Quick checks:
 - Source branch clean before promotion.
 - Target `main` prepared from `origin/main`.

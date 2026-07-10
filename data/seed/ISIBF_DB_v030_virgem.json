@@ -6,18 +6,6 @@
   "created_at": "2026-05-12T13:21:25.5728382Z",
   "updated_at": "2026-05-12T18:59:24.4017325Z",
   "users": {
-    "sferrari@firjan.com.br": {
-      "nome": "Stefano Ferrari",
-      "papel_global": "gestor",
-      "equipe_default": "ESP",
-      "ativo": true
-    },
-    "acsdias@firjan.com.br": {
-      "nome": "Ana Carolina Spindola",
-      "papel_global": "gestor",
-      "equipe_default": "ESP",
-      "ativo": true
-    },
     "fscunha@firjan.com.br": {
       "nome": "Felipe Cunha",
       "papel_global": "gestor",
@@ -51,7 +39,7 @@
     "lvteixeira@firjan.com.br": {
       "nome": "Leonardo Teixeira",
       "papel_global": "gestor",
-      "equipe_default": "CIN",
+      "equipe_default": "CIN,ESP",
       "ativo": true
     },
     "dway@firjan.com.br": {
@@ -100,6 +88,12 @@
       "nome": "Bruno",
       "papel_global": "gestor",
       "equipe_default": "SVP",
+      "ativo": true
+    },
+    "vdmattos@firjan.com.br": {
+      "nome": "Vivian de Mattos",
+      "papel_global": "dev-II",
+      "equipe_default": "",
       "ativo": true
     }
   },

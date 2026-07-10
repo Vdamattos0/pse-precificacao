@@ -7,7 +7,7 @@ de projetos de PD&I.
 A versao estavel atual e:
 
 ```text
-app/ISIB&F_precificação_de_projetos_v051.html
+app/ISIB&F_precificação_de_projetos_v052.html
 ```
 
 > Observacao: os arquivos HTML oficiais usam acentos no nome. Se o terminal
@@ -33,7 +33,7 @@ de custos, regras de fomento e colaboracao entre equipes. Ela centraliza:
 1. Abra o arquivo estavel atual no navegador:
 
    ```text
-   app/ISIB&F_precificação_de_projetos_v051.html
+   app/ISIB&F_precificação_de_projetos_v052.html
    ```
 
 2. Use Edge ou Chrome para habilitar o modo `DB sincronizado`.
@@ -485,7 +485,8 @@ bloqueiam, mas entram na aba de validacoes.
 
 | Versao | Arquivo | Status | Resumo |
 | --- | --- | --- | --- |
-| v051 | `app/ISIB&F_precificação_de_projetos_v051.html` | Estavel atual | Auditoria pre-lancamento: multi-fomento (max. 2; ANP+Petrobras proibido; indiretos pelo regime mais restritivo; EP>=50% em combo EMBRAPII+regulado), distribuicao por tier EMBRAPII (CG/AA1/AA2) que muda ao cruzar de categoria, diarias pre-preenchidas por fomento, migracao de propostas antigas e rede de testes automatizados do motor (`tools/`). |
+| v052 | `app/ISIB&F_precificação_de_projetos_v052.html` | Estavel atual | Gestores de aprovação ESP: Leonardo Teixeira adicionado como aprovador ESP em acúmulo com CIN; Stefano Ferrari e Ana Carolina Spindola removidos. |
+| v051 | `archive/outdated/versions/v051/ISIB&F_precificação_de_projetos_v051.html` | Arquivado | Auditoria pre-lancamento: multi-fomento (max. 2; ANP+Petrobras proibido; indiretos pelo regime mais restritivo; EP>=50% em combo EMBRAPII+regulado), distribuicao por tier EMBRAPII (CG/AA1/AA2) que muda ao cruzar de categoria, diarias pre-preenchidas por fomento, migracao de propostas antigas e rede de testes automatizados do motor (`tools/`). |
 | v050 | `archive/outdated/versions/v050/...v050.html` | Arquivado em dev | Viabilidade do otimizador avaliada no nivel do projeto (corrige falso "sem solucao"); contrapartida economica distribuida por macro proporcional ao financeiro. |
 | v049 | `archive/outdated/versions/v049/...v049.html` | Arquivado em dev | Botao unico "Otimizar distribuicao (EP/EB/SN)" preservando o valor financeiro das rubricas. |
 | v048 | `archive/outdated/versions/v048/...v048.html` | Arquivado em dev | Reescrita do otimizador de origem preservando itens economicos/SENAI; idempotencia e reversao quando inviavel. |
@@ -512,6 +513,7 @@ bloqueiam, mas entram na aba de validacoes.
 - `logs/IMPLEMENTATION_LOG_CODEX_V032_VALIDATION_EXPORT.md`
 - `logs/IMPLEMENTATION_LOG_CODEX_V033_BUGFIXES.md`
 - `logs/IMPLEMENTATION_LOG_CODEX_V034_RELEASE.md`
+- `logs/IMPLEMENTATION_LOG_CODEX_V052_ESP_APPROVERS.md`
 - `logs/IMPLEMENTATION_LOG_CURRENT.md`
 
 ## Testes automatizados do motor
@@ -530,7 +532,7 @@ o golden após uma mudança intencional de cálculo: `UPDATE_SNAPSHOTS=1 node to
 
 ## Testes manuais recomendados antes de release
 
-- Abrir v051 no Edge/Chrome (ver também `logs/CHECKLIST_V051_BROWSER.md`).
+- Abrir v052 no Edge/Chrome (ver também `logs/CHECKLIST_V052_BROWSER.md`).
 - Conectar `ISIBF_DB.json` pelo modo `DB sincronizado`.
 - Confirmar que landing mostra status verde do DB.
 - Criar proposta direta sem fomento e configurar indiretos abaixo/acima de 30%.
@@ -546,4 +548,4 @@ o golden após uma mudança intencional de cálculo: `UPDATE_SNAPSHOTS=1 node to
 
 ## Status atual
 
-`dev_v038_beta_rules` contem a v051 (auditoria pre-lancamento: multi-fomento, tiers EMBRAPII, otimizador de distribuicao e rede de testes automatizados). Promovida para `main` apos a validacao manual da equipe (ver `logs/CHECKLIST_V051_BROWSER.md`).
+`dev_v038_beta_rules` contem a v052 (gestores de aprovação ESP Leonardo Teixeira e atualização v052). Promovida para `main` apos a validacao manual da equipe (ver `logs/CHECKLIST_V052_BROWSER.md`).

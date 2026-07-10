@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..');
-const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v051.html');
+const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v052.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
 function extractFunctionDeclaration(source, name) {
@@ -180,4 +180,4 @@ function calcFixture(extra = {}) {
   assert.match(out, /onclick="FUNDING\.optimizeAll\(\)"/);
 }
 
-console.log('test_v051_sidebar_optimizer_buttons: OK');
+console.log('test_v052_sidebar_optimizer_buttons: OK');

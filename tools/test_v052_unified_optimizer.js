@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..');
-const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v051.html');
+const htmlPath = path.join(repoRoot, 'app', 'ISIB&F_precificação_de_projetos_v052.html');
 const html = fs.readFileSync(htmlPath, 'utf8');
 
 function extractObjectDeclaration(source, name) {
@@ -136,4 +136,4 @@ const ecoSrc = html.slice(html.indexOf('_addEconomicContrapartida(){'), html.ind
 assert.match(ecoSrc, /economico:\s*true/, 'HH adicionado marcado como econômico');
 assert.match(ecoSrc, /fonte_recurso:\s*'sn'/, "HH adicionado em fonte 'sn'");
 
-console.log('test_v051_unified_optimizer: OK');
+console.log('test_v052_unified_optimizer: OK');
