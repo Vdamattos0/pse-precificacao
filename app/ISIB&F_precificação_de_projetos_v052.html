@@ -2252,6 +2252,17 @@ input[type=radio]:checked + .tipo-prop-card .tipo-prop-icon{color:var(--gold-dee
           🔗 Fomento herdado da proposta mãe
         </span>
       </div>
+      <div class="fg full" style="border-top:1px solid var(--gray-200);padding-top:10px"><label class="lbl" style="margin-bottom:6px;display:block">Responsáveis</label></div>
+      <div class="fg"><label class="lbl">Elaborado por</label>
+        <input type="text" id="m-elab" placeholder="Nome do elaborador"></div>
+      <div class="fg"><label class="lbl">E-mail do Elaborador</label>
+        <input type="text" id="m-email-elab" placeholder="nome@firjan.com.br"></div>
+      <div class="fg"><label class="lbl">Líder Técnico</label>
+        <input type="text" id="m-lt" placeholder="Nome do Líder Técnico"></div>
+      <div class="fg"><label class="lbl">E-mail Líder Técnico</label>
+        <input type="email" id="m-email-lt" placeholder="lt@firjan.com.br"></div>
+      <div class="fg full"><label class="lbl" id="m-aprov-lbl">Aprovador Responsável</label>
+        <select id="m-aprov-sel"><option value="">— selecione o aprovador —</option></select></div>
     </div>
     <div class="modal-acts">
       <button class="btn btn-outline btn-sm" onclick="META.close()">Cancelar</button>
@@ -4791,16 +4802,49 @@ function toast(msg,type='ok',ms=3000){
 // META MODAL
 // ============================================================
 const META={
+  _approverData(filterTeam, selectedEmail=''){
+    const all = APPROVERS.getRegistry().filter(u=>u.ativo!==false);
+    const eq = String(filterTeam||'').toUpperCase();
+    const filtered = eq ? all.filter(g=>String(g.equipe||'').toUpperCase().split(',').map(s=>s.trim()).includes(eq)) : all;
+    const gestores = filtered.length ? filtered : all;
+    const cur = String(selectedEmail||'').toLowerCase();
+    return {
+      gestores,
+      hint: eq && filtered.length ? ` (filtrado: ${eq})` : '',
+      options: gestores.map(u=>`<option value="${esc(u.email)}" data-nome="${esc(u.nome)}" ${u.email.toLowerCase()===cur?'selected':''}>${esc(u.nome)}${u.equipe?' · '+esc(u.equipe.toUpperCase()):''}</option>`).join('')
+    };
+  },
+  _routingTeam(tipo){
+    if(tipo==='mae') return STATE.meta.equipe_focal || '';
+    if(tipo==='equipe') return STATE.meta.equipe || STATE.proposal.equipe || '';
+    return STATE.meta.equipe || STATE.proposal.equipe || AUTH.currentUser()?.equipe_default || '';
+  },
+  _renderApproverSelect(tipo, selectedEmail=''){
+    const sel = document.getElementById('m-aprov-sel');
+    const lbl = document.getElementById('m-aprov-lbl');
+    if(!sel || !lbl) return;
+    const data = this._approverData(this._routingTeam(tipo), selectedEmail || STATE.proposal.email_aprovador || '');
+    lbl.textContent = `Aprovador Responsável${data.hint}`;
+    sel.innerHTML = '<option value="">— selecione o aprovador —</option>' + data.options;
+    if(!sel.value && data.gestores.length===1) sel.value = data.gestores[0].email;
+  },
   open(){
+    const tipoAtual = STATE.proposal?.tipo_proposta || STATE.meta?.tipo_proposta || 'direta';
+    if(STATE.proposal?.id && tipoAtual !== 'equipe') return NOVA.openEdit();
     const m = STATE.meta;
     const p = STATE.proposal;
     document.getElementById('m-titulo').value=m.titulo||'';
     document.getElementById('m-empresa').value=m.empresa||'';
     document.getElementById('m-duracao').value=m.duracao||18;
     document.getElementById('m-tipo-proj').value=m.tipo_proj||'pdi';
+    document.getElementById('m-elab').value=p.elaborado_por||'';
+    document.getElementById('m-email-elab').value=p.email_elaborador||'';
+    document.getElementById('m-lt').value=p.lider_tecnico||'';
+    document.getElementById('m-email-lt').value=p.email_lider_tecnico||'';
     FOMENTO.syncMeta(m);
     this.handleTipoProposta(p.tipo_proposta||m.tipo_proposta||'direta', true);
     this._renderCards(m.fomentos||m.fomento||'sem', m.tipo_proj||'pdi');
+    this._renderApproverSelect(p.tipo_proposta||m.tipo_proposta||'direta', p.email_aprovador||'');
     document.getElementById('meta-modal').style.display='flex';
     setTimeout(()=>document.getElementById('m-titulo').focus(),100);
   },
@@ -4823,15 +4867,18 @@ const META={
       const focal = document.getElementById('m-equipe-focal');
       const equipes = this._participatingTeamsForCurrent();
       this._renderFocalOptions(focal, equipes, STATE.meta.equipe_focal);
+      focal.onchange = ()=>this._renderApproverSelect('mae','');
     }
     if(tipo==='equipe'){
       const sel = document.getElementById('m-equipe-sel');
       sel.innerHTML = '<option value="">— selecione —</option>' +
         DATA.EQUIPES.map(e=>`<option value="${e}"${STATE.proposal.equipe===e?' selected':''}>${e}</option>`).join('');
+      sel.onchange = ()=>this._renderApproverSelect('equipe','');
       if(STATE.proposal.id_mae)
         document.getElementById('m-id-mae').value = STATE.proposal.id_mae;
       this.lookupMae(document.getElementById('m-id-mae').value);
     }
+    this._renderApproverSelect(tipo, STATE.proposal.email_aprovador||'');
     if(!init) STATE.meta.tipo_proposta = tipo;
   },
   lookupMae(val){
@@ -4859,6 +4906,7 @@ const META={
     MACRO.inherit(STATE.meta,mae.state.meta);
     this._renderCards(mae.state.meta.fomentos, STATE.meta.tipo_proj);
     document.querySelectorAll('.mode-card').forEach(c=>c.style.pointerEvents='none');
+    this._renderApproverSelect('equipe', STATE.proposal.email_aprovador||'');
   },
   save(){
     const tipo = document.querySelector('input[name="tipo_proposta"]:checked')?.value ||
@@ -4868,14 +4916,19 @@ const META={
     STATE.meta.duracao  = parseInt(document.getElementById('m-duracao').value)||18;
     STATE.meta.tipo_proj= document.getElementById('m-tipo-proj').value;
     STATE.meta.tipo_proposta = tipo;
+    STATE.proposal.elaborado_por = document.getElementById('m-elab').value.trim();
+    STATE.proposal.email_elaborador = document.getElementById('m-email-elab').value.trim();
+    STATE.proposal.lider_tecnico = document.getElementById('m-lt').value.trim();
+    STATE.proposal.email_lider_tecnico = document.getElementById('m-email-lt').value.trim().toLowerCase();
     if(tipo==='equipe'){
       STATE.meta.equipe   = document.getElementById('m-equipe-sel').value||null;
       STATE.meta.id_mae   = document.getElementById('m-id-mae').value.trim()||null;
       STATE.proposal.equipe  = STATE.meta.equipe;
       STATE.proposal.id_mae  = STATE.meta.id_mae;
     } else {
-      STATE.meta.equipe = null; STATE.meta.id_mae = null;
-      STATE.proposal.equipe = null; STATE.proposal.id_mae = null;
+      if(tipo==='direta') STATE.meta.equipe = STATE.meta.equipe || STATE.proposal.equipe || AUTH.currentUser()?.equipe_default || null;
+      STATE.meta.id_mae = null;
+      STATE.proposal.id_mae = null;
     }
     if(tipo==='mae'){
       STATE.meta.equipe_focal = document.getElementById('m-equipe-focal').value || null;
@@ -4886,14 +4939,16 @@ const META={
       STATE.meta.equipe_focal = null;
     }
     STATE.proposal.tipo_proposta = tipo;
+    const aprovSel = document.getElementById('m-aprov-sel');
+    const aprovOpt = aprovSel?.selectedOptions?.[0];
+    STATE.proposal.email_aprovador = aprovSel?.value || '';
+    STATE.proposal.responsavel_aprovacao = aprovOpt?.dataset?.nome || '';
     if(tipo!=='equipe'){
       STATE.meta.fomentos = this._selectedFomentos();
       STATE.meta.fomento = FOMENTO.primaryFor(STATE.meta.fomentos);
     }
     const comboErr = FOMENTO.comboError(STATE.meta);
     if(comboErr){ toast(comboErr,'err',7000); return; }
-    // Combo EMBRAPII + regulado: força a distribuição padrão (EP 50 / EB 33 / SN 17) se a EP
-    // ainda não cumprir o piso de 50%. Acima disso o usuário pode ajustar EB/SN livremente.
     if(FOMENTO.isEmbrapiiRegulatedCombo(STATE.meta) && (STATE.config.ep_pct||0) < FOMENTO.EMBRAPII_COMBO_EP_MIN - 0.001){
       const d=FOMENTO.defaultDistribution(STATE.meta);
       STATE.config.ep_pct=d.ep_pct; STATE.config.eb_pct=d.eb_pct; STATE.config.sn_pct=d.sn_pct;
@@ -8210,6 +8265,7 @@ const NOVA = {
   _colabRows: [],
   _macroMode: false,
   _macros: [],
+  _editingId: null,
 
   // Popula o select de aprovadores filtrando por equipe (se informada)
   _populateAprovSel(filterTeam){
@@ -8232,7 +8288,25 @@ const NOVA = {
     }
   },
 
+  _setPanelMode(editing=false){
+    const title = document.querySelector('#nova-modal .modal-title');
+    const primary = document.querySelector('#nova-modal .btn-primary.btn-sm');
+    if(title) title.innerHTML = `<svg class="icn icn-sm" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:6px"><path d="${editing?'M12 20h9':'M12 5v14M5 12h14'}"/></svg>${editing?'Editar Proposta':'Nova Proposta'}`;
+    if(primary) primary.textContent = editing ? 'Salvar alterações' : 'Criar Proposta';
+  },
+  _setSelectedTeams(teams=[]){
+    const selected = new Set(teams||[]);
+    document.querySelectorAll('#nova-equipes-checks input').forEach(cb=>{ cb.checked = selected.has(cb.value); });
+    this._syncFocalTeams();
+  },
+  _seedColabsForEdit(colabs=[]){
+    this._colabRows = (colabs||[]).map(c=>(
+      {id:STATE.uid(), email:String(c.email||'').trim().toLowerCase(), equipes:[...(c.equipes||[])]}
+    ));
+    if(!this._colabRows.length) this._colabRows = [];
+  },
   open(){
+    this._editingId = null;
     this._type = 'direta';
     this._fomento = 'embrapii';
     this._fomentos = ['embrapii'];
@@ -8243,7 +8317,6 @@ const NOVA = {
     document.getElementById('nova-empresa').value = '';
     document.getElementById('nova-duracao').value = 18;
 
-    // Auto-fill do usuário logado (Fase 1/5)
     const user = AUTH.currentUser();
     document.getElementById('nova-elab').value = user ? user.nome : '';
     document.getElementById('nova-email-elab').value = user ? user.email : '';
@@ -8262,11 +8335,60 @@ const NOVA = {
     this._renderEquipes();
     this._renderColabs();
     this.selectType('direta');
+    this._setPanelMode(false);
     document.getElementById('nova-modal').style.display = 'flex';
     setTimeout(()=>document.getElementById('nova-titulo').focus(), 80);
   },
+  openEdit(){
+    if(!STATE.proposal?.id) return toast('Nenhuma proposta aberta para editar.', 'warn');
+    const tipo = STATE.proposal.tipo_proposta || STATE.meta.tipo_proposta || 'direta';
+    if(tipo==='equipe') return META.open();
+    this.open();
+    this._editingId = STATE.proposal.id;
+    this._type = tipo;
+    this._fomentos = FOMENTO.normalize({fomentos: STATE.meta.fomentos || FOMENTO.getSelected(STATE.meta)});
+    this._fomento = FOMENTO.primaryFor(this._fomentos);
+    this._macroMode = !!(STATE.meta.precificacao_modo==='macroentregas' && FOMENTO.has(STATE.meta,'embrapii'));
+    this._macros = MACRO.clone(STATE.meta.macroentregas || []);
+    this._seedColabsForEdit(STATE.proposal.colaboradores || []);
+
+    document.getElementById('nova-titulo').value = STATE.meta.titulo || '';
+    document.getElementById('nova-empresa').value = STATE.meta.empresa || '';
+    document.getElementById('nova-duracao').value = STATE.meta.duracao || 18;
+    document.getElementById('nova-tipo-proj').value = STATE.meta.tipo_proj || 'pdi';
+    document.getElementById('nova-elab').value = STATE.proposal.elaborado_por || '';
+    document.getElementById('nova-email-elab').value = STATE.proposal.email_elaborador || '';
+    document.getElementById('nova-lt').value = STATE.proposal.lider_tecnico || '';
+    document.getElementById('nova-email-lt').value = STATE.proposal.email_lider_tecnico || '';
+
+    this._renderFomento(STATE.meta.tipo_proj || 'pdi');
+    this.selectType(tipo);
+
+    if(tipo==='direta'){
+      const directTeam = document.getElementById('nova-direta-equipe');
+      if(directTeam) directTeam.value = STATE.meta.equipe || STATE.proposal.equipe || '';
+      this._populateAprovSel(directTeam?.value || null);
+    } else if(tipo==='mae'){
+      const teams = TEAM.getEquipes(STATE.proposal.id).map(eq=>eq.equipe).filter(Boolean);
+      this._setSelectedTeams(teams);
+      const focal = document.getElementById('nova-equipe-focal');
+      if(focal) focal.value = STATE.meta.equipe_focal || '';
+      this._populateAprovSel(focal?.value || null);
+      this._renderColabs();
+    }
+
+    const macroCheck = document.getElementById('nova-use-macros');
+    if(macroCheck) macroCheck.checked = this._macroMode;
+    this._syncMacroVisibility();
+    if(this._macroMode) this._renderMacros();
+    const aprovSel = document.getElementById('nova-aprov-sel');
+    if(aprovSel && STATE.proposal.email_aprovador) aprovSel.value = STATE.proposal.email_aprovador;
+    this._setPanelMode(true);
+  },
   close(){
     document.getElementById('nova-modal').style.display='none';
+    this._editingId = null;
+    this._setPanelMode(false);
     if(!STATE.proposal || !STATE.proposal.id){
       LANDING.showHomeScreen();
     }
@@ -8478,7 +8600,157 @@ const NOVA = {
     this._renderColabs();
   },
 
-  create(){
+  async _saveEdit(data){
+    DB._ensureDB();
+    const currentId = this._editingId;
+    const now = DB.now();
+    const rec = DB._data.proposals?.[currentId];
+    if(!rec) return toast('Proposta não encontrada para edição.', 'err');
+    const oldType = rec.tipo_proposta || rec.state?.meta?.tipo_proposta || 'direta';
+    const newType = data.tipo_proposta;
+    const oldTeams = oldType==='mae' ? TEAM.getEquipes(currentId).map(eq=>eq.equipe).filter(Boolean) : [];
+    const removedTeams = oldType==='mae' ? oldTeams.filter(eq=>!data.checked.includes(eq)) : [];
+    if(oldType==='mae' && newType==='direta' && oldTeams.length){
+      const ok = await CONFIRM.open('Alterar proposta', `Salvar como proposta direta vai remover ${oldTeams.length} subproposta(s). Confirmar?`);
+      if(!ok) return false;
+    }
+    if(oldType==='mae' && newType==='mae' && removedTeams.length){
+      const ok = await CONFIRM.open('Remover subequipes', `Salvar esta edição vai remover as subpropostas: ${removedTeams.join(', ')}. Confirmar?`);
+      if(!ok) return false;
+    }
+
+    const routeTeam = newType === 'mae' ? data.equipe_focal : data.equipe_direta;
+    const routeApprover = APPROVERS.getDefaultApproverForTeam(routeTeam);
+    const aprovFinal = data.aprov || routeApprover?.nome || STATE.proposal.responsavel_aprovacao || '';
+    const emailAprovFinal = data.emailAprov || routeApprover?.email || STATE.proposal.email_aprovador || '';
+
+    STATE.meta.titulo = data.titulo;
+    STATE.meta.empresa = data.empresa;
+    STATE.meta.fomento = data.fomento;
+    STATE.meta.fomentos = data.fomentos;
+    STATE.meta.duracao = data.duracao;
+    STATE.meta.tipo_proj = data.tipo_proj;
+    STATE.meta.tipo_proposta = newType;
+    STATE.meta.equipe = newType === 'direta' ? data.equipe_direta : null;
+    STATE.meta.id_mae = null;
+    STATE.meta.equipe_focal = newType === 'mae' ? data.equipe_focal : null;
+    STATE.meta.precificacao_modo = data.macroEnabled ? 'macroentregas' : 'tradicional';
+    STATE.meta.macroentregas = MACRO.clone(data.macroentregas);
+    FOMENTO.syncMeta(STATE.meta);
+    MACRO.ensureMeta(STATE.meta);
+    if(FOMENTO.isEmbrapiiRegulatedCombo(STATE.meta) && (STATE.config.ep_pct||0) < FOMENTO.EMBRAPII_COMBO_EP_MIN - 0.001){
+      const d=FOMENTO.defaultDistribution(STATE.meta);
+      STATE.config.ep_pct=d.ep_pct; STATE.config.eb_pct=d.eb_pct; STATE.config.sn_pct=d.sn_pct;
+    }
+
+    STATE.proposal.id = currentId;
+    STATE.proposal.id_base = rec.id_base || currentId;
+    STATE.proposal.tipo_proposta = newType;
+    STATE.proposal.equipe = newType === 'direta' ? data.equipe_direta : null;
+    STATE.proposal.id_mae = null;
+    STATE.proposal.elaborado_por = data.elab;
+    STATE.proposal.email_elaborador = data.emailElab;
+    STATE.proposal.lider_tecnico = data.lt;
+    STATE.proposal.email_lider_tecnico = data.emailLt;
+    STATE.proposal.responsavel_aprovacao = aprovFinal;
+    STATE.proposal.email_aprovador = emailAprovFinal;
+    STATE.proposal.atualizado_em = now;
+    STATE.proposal.colaboradores = newType === 'mae' ? data.colabs.map(c=>(
+      {email:c.email,nome:(DB._data.users?.[c.email]?.nome || c.email.split('@')[0]),equipes:[...c.equipes],direito_revisao:true,adicionado_por:AUTH.currentUser()?.email||'',adicionado_em:now}
+    )) : [];
+    STATE.proposal.colaboradores.forEach(c=>{
+      if(!DB._data.users[c.email]) DB._data.users[c.email] = {nome:c.nome, papel_global:'pesquisador', equipe_default:c.equipes[0]||'', ativo:true, criado_em:now};
+    });
+
+    if(newType === 'mae'){
+      const selected = new Set(data.checked);
+      if(oldType==='mae'){
+        Object.values(DB._data.proposals||{}).forEach(child=>{
+          if(child.id_mae === currentId && child.tipo_proposta==='equipe' && !selected.has(child.equipe)) delete DB._data.proposals[child.id];
+        });
+      }
+      data.checked.forEach(eq=>{
+        const eqId = `${currentId}-${eq}`;
+        const eqApprover = APPROVERS.getDefaultApproverForTeam(eq);
+        const existing = DB._data.proposals[eqId];
+        if(existing){
+          existing.tipo_proposta = 'equipe';
+          existing.equipe = eq;
+          existing.id_mae = currentId;
+          existing.atualizado_em = now;
+          existing.state.meta = {
+            ...existing.state.meta,
+            titulo:`${data.titulo} — ${eq}`,
+            empresa:data.empresa,
+            fomento:data.fomento,
+            fomentos:[...data.fomentos],
+            duracao:data.duracao,
+            tipo_proj:data.tipo_proj,
+            tipo_proposta:'equipe',
+            equipe:eq,
+            id_mae:currentId,
+            equipe_focal:null,
+            precificacao_modo:STATE.meta.precificacao_modo,
+            macroentregas:MACRO.clone(STATE.meta.macroentregas)
+          };
+          existing.responsavel_aprovacao = existing.responsavel_aprovacao || eqApprover?.nome || '';
+          existing.email_aprovador = existing.email_aprovador || eqApprover?.email || '';
+          existing.colaboradores = data.colabs.filter(c=>c.equipes.includes(eq)).map(c=>({
+            email:c.email,
+            nome:(DB._data.users?.[c.email]?.nome || c.email.split('@')[0]),
+            adicionado_por:AUTH.currentUser()?.email||'',
+            adicionado_em:now,
+            direito_revisao:true
+          }));
+        } else {
+          DB._data.proposals[eqId] = {
+            id:eqId, id_base:eqId, revisao_numero:0, status:'em_elaboracao',
+            tipo_proposta:'equipe', equipe:eq, id_mae:currentId,
+            elaborado_por:(eq === AUTH.currentUser()?.equipe_default) ? data.elab : '',
+            email_elaborador:(eq === AUTH.currentUser()?.equipe_default) ? data.emailElab : '',
+            responsavel_aprovacao:eqApprover?.nome || '', email_aprovador:eqApprover?.email || '',
+            comentario_aprovador:'', historico:[], colaboradores:data.colabs.filter(c=>c.equipes.includes(eq)).map(c=>({
+              email:c.email,
+              nome:(DB._data.users?.[c.email]?.nome || c.email.split('@')[0]),
+              adicionado_por:AUTH.currentUser()?.email||'',
+              adicionado_em:now,
+              direito_revisao:true
+            })),
+            criado_em:now, atualizado_em:now,
+            state:{
+              meta:{titulo:`${data.titulo} — ${eq}`, empresa:data.empresa, fomento:data.fomento, fomentos:[...data.fomentos], duracao:data.duracao, tipo_proj:data.tipo_proj,
+                    tipo_proposta:'equipe', equipe:eq, id_mae:currentId, equipe_focal:null,
+                    precificacao_modo:STATE.meta.precificacao_modo, macroentregas:MACRO.clone(STATE.meta.macroentregas)},
+              config:{...STATE.config},
+              ptec:[],padm:[],viagens:[],soft:[],equip:[],cons:[],serv:[],matp:[],_id:1
+            }
+          };
+        }
+      });
+    } else if(oldType==='mae') {
+      Object.values(DB._data.proposals||{}).forEach(child=>{
+        if(child.id_mae === currentId && child.tipo_proposta==='equipe') delete DB._data.proposals[child.id];
+      });
+    }
+
+    DB._data.proposals[currentId] = DB._snapshot({atualizado_em:now, updated_at:now});
+    DB._data.updated_at = now;
+    DB._data.last_saved_at = now;
+    DB._data.last_saved_by = AUTH.currentUser()?.email || 'usuario_local';
+    DB._data.db_version = (DB._data.db_version || 1) + 1;
+    DB._loadedVersion = DB._data.db_version;
+    TEAM._view='proprio'; TEAM._viewManual=false;
+    this.close();
+    UI.renderAll();
+    DB.renderStats();
+    DB._updateWorkflowBar();
+    TEAM._refreshSwitcher();
+    await DB.saveCurrentToSharedDb('Editar proposta');
+    toast(`Proposta ${currentId} atualizada.`, 'ok', 4000);
+    return true;
+  },
+
+  async create(){
     const titulo  = document.getElementById('nova-titulo').value.trim();
     if(!titulo){ toast('Informe o título do projeto','err'); return; }
 
@@ -8519,6 +8791,10 @@ const NOVA = {
     if(macroEnabled){
       const macroErrors=MACRO.validate({tipo_proposta,fomento,fomentos,duracao,precificacao_modo:'macroentregas',macroentregas});
       if(macroErrors.length){ toast(macroErrors[0],'err',7000); return; }
+    }
+
+    if(this._editingId){
+      return await this._saveEdit({titulo, empresa, duracao, tipo_proj, fomentos, fomento, tipo_proposta, elab, emailElab, lt, emailLt, emailAprov, aprov, checked, colabs, equipe_focal, equipe_direta, macroEnabled, macroentregas});
     }
 
     DB._ensureDB();
