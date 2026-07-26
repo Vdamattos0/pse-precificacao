@@ -9656,26 +9656,45 @@ const DB = {
     if(!isSilent) toast(`Baixado: ${fname}`,'ok');
   },
 
+  _saveModalApproverOptions(filterTeam, selectedEmail=''){
+    const allG = APPROVERS.getRegistry().filter(u => u.ativo !== false);
+    const eq = String(filterTeam || '').toUpperCase();
+    const filtered = eq ? allG.filter(g => String(g.equipe||'').toUpperCase().split(',').map(s=>s.trim()).includes(eq)) : allG;
+    const gestores = filtered.length ? filtered : allG;
+    const curEmail = String(selectedEmail || '').toLowerCase();
+    const options = gestores.map(u =>
+      `<option value="${esc(u.email)}" data-nome="${esc(u.nome)}" ${u.email.toLowerCase()===curEmail?'selected':''}>${esc(u.nome)}${u.equipe?' · '+esc(u.equipe.toUpperCase()):''}</option>`
+    ).join('');
+    const hint = eq && filtered.length ? ` <span style="font-size:10px;color:var(--ink-4)">(filtrado: ${eq})</span>` : '';
+    return { options, hint, gestores };
+  },
+
+  _refreshSaveModalApprovers(filterTeam, selectedEmail=''){
+    const sel = document.getElementById('sm-aprov-sel');
+    const lbl = document.getElementById('sm-aprov-lbl');
+    if(!sel) return;
+    const data = this._saveModalApproverOptions(filterTeam, selectedEmail || sel.value);
+    sel.innerHTML = `<option value="">— selecione o aprovador —</option>${data.options}`;
+    if(!sel.value && data.gestores.length===1) sel.value = data.gestores[0].email;
+    if(lbl) lbl.innerHTML = `Aprovador Responsável${data.hint}`;
+  },
+
   _openSaveModal(mode, cb){
     const p = STATE.proposal;
     const isNew = mode==='new' || !p.id;
     const newId = isNew ? this.nextId() : p.id;
     const m = STATE.meta;
-    const isMae  = (m.tipo_proposta||p.tipo_proposta) === 'mae';
-    const isEq   = (m.tipo_proposta||p.tipo_proposta) === 'equipe';
+    const tipo = m.tipo_proposta || p.tipo_proposta || 'direta';
+    const isEq = tipo === 'equipe';
+    const directTeam = m.equipe || p.equipe || AUTH.currentUser()?.equipe_default || '';
+    const focalTeam = m.equipe_focal || '';
+    const teamForApprover = tipo === 'mae' ? focalTeam : directTeam;
+    const approverData = this._saveModalApproverOptions(teamForApprover, p.email_aprovador || '');
+    const directTeamOptions = '<option value="">— selecione —</option>' + DATA.EQUIPES.map(e=>`<option value="${e}" ${directTeam===e?'selected':''}>${e}</option>`).join('');
+    const focalTeamOptions = '<option value="">— selecione —</option>' + DATA.EQUIPES.map(e=>`<option value="${e}" ${focalTeam===e?'selected':''}>${e}</option>`).join('');
 
     document.getElementById('save-modal-title').textContent = isNew ? '📋 Nova Proposta' : `💾 Salvar — ${p.id}`;
     document.getElementById('save-modal-ok').textContent = 'Salvar';
-    const _tipo = m.tipo_proposta || p.tipo_proposta || 'direta';
-    const _focal = (m.equipe_focal || '').toUpperCase();
-    const _allG  = APPROVERS.getRegistry().filter(u => u.ativo !== false);
-    const _filt  = (_tipo === 'mae' && _focal) ? _allG.filter(g => String(g.equipe||'').toUpperCase() === _focal) : _allG;
-    const _gestores = _filt.length ? _filt : _allG;
-    const _curEmail = (p.email_aprovador || '').toLowerCase();
-    const _aprovOpts = _gestores.map(u =>
-      `<option value="${esc(u.email)}" data-nome="${esc(u.nome)}" ${u.email.toLowerCase()===_curEmail?'selected':''}>${esc(u.nome)}${u.equipe?' · '+esc(u.equipe.toUpperCase()):''}</option>`
-    ).join('');
-    const _aprovHint = (_tipo==='mae' && _focal && _filt.length) ? ` <span style="font-size:10px;color:var(--ink-4)">(filtrado: ${_focal})</span>` : '';
     document.getElementById('save-modal-body').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="fg full" style="grid-column:1/-1"><label class="lbl">ID da Proposta</label><input type="text" id="sm-id" value="${esc(newId)}" style="font-family:var(--mono);font-weight:700;font-size:14px"></div>
@@ -9684,41 +9703,60 @@ const DB = {
         <div class="fg"><label class="lbl">Duração (meses)</label><input type="number" id="sm-duracao" value="${m.duracao||18}" min="1" max="60"></div>
         <div class="fg"><label class="lbl">Tipo de Projeto</label><select id="sm-tipo-proj"><option value="pdi" ${(m.tipo_proj||'pdi')==='pdi'?'selected':''}>PD&I</option><option value="infra" ${m.tipo_proj==='infra'?'selected':''}>Infraestrutura</option><option value="servico" ${m.tipo_proj==='servico'?'selected':''}>Serviço Tecnológico</option></select></div>
         <div class="fg"><label class="lbl">Fomento</label><select id="sm-fomento" multiple size="4" ${isEq?'disabled title="Herdado"':''}>${FOMENTO.allowed(m.tipo_proj||'pdi').map(id=>`<option value="${id}" ${FOMENTO.getSelected(m).includes(id)?'selected':''}>${DATA.modes[id]?.label||id}</option>`).join('')}</select></div>
+        ${tipo==='direta' ? `<div class="fg full" style="grid-column:1/-1"><label class="lbl">Equipe responsável *</label><select id="sm-direta-equipe">${directTeamOptions}</select></div>` : ''}
+        ${tipo==='mae' ? `<div class="fg full" style="grid-column:1/-1"><label class="lbl">Equipe focal *</label><select id="sm-equipe-focal">${focalTeamOptions}</select></div>` : ''}
         <div class="fg" style="border-top:1px solid var(--gray-200);padding-top:10px;grid-column:1/-1"><label class="lbl" style="margin-bottom:6px;display:block">Responsáveis</label></div>
         <div class="fg"><label class="lbl">Elaborado por</label><input type="text" id="sm-elab" value="${esc(p.elaborado_por)}"></div>
         <div class="fg"><label class="lbl">E-mail do Elaborador</label><input type="text" id="sm-email-elab" value="${esc(p.email_elaborador)}"></div>
-        <div class="fg full" style="grid-column:1/-1"><label class="lbl">Aprovador Responsável${_aprovHint}</label>
-          <select id="sm-aprov-sel"><option value="">— selecione o aprovador —</option>${_aprovOpts}</select>
+        <div class="fg"><label class="lbl">Líder Técnico</label><input type="text" id="sm-lt" value="${esc(p.lider_tecnico||'')}"></div>
+        <div class="fg"><label class="lbl">E-mail Líder Técnico</label><input type="email" id="sm-email-lt" value="${esc(p.email_lider_tecnico||'')}"></div>
+        <div class="fg full" style="grid-column:1/-1"><label class="lbl" id="sm-aprov-lbl">Aprovador Responsável${approverData.hint}</label>
+          <select id="sm-aprov-sel"><option value="">— selecione o aprovador —</option>${approverData.options}</select>
         </div>
       </div>`;
+
+    const smDirect = document.getElementById('sm-direta-equipe');
+    if(smDirect) smDirect.onchange = () => this._refreshSaveModalApprovers(smDirect.value, '');
+    const smFocal = document.getElementById('sm-equipe-focal');
+    if(smFocal) smFocal.onchange = () => this._refreshSaveModalApprovers(smFocal.value, '');
 
     document.getElementById('save-modal-ok').onclick = () => {
       const smId = document.getElementById('sm-id').value.trim();
       if(!smId){ toast('Informe o ID da proposta','err'); return; }
-      
+
       STATE.meta.titulo = document.getElementById('sm-titulo').value.trim();
       STATE.meta.empresa = document.getElementById('sm-empresa').value.trim();
       STATE.meta.duracao = parseInt(document.getElementById('sm-duracao').value)||18;
       STATE.meta.tipo_proj = document.getElementById('sm-tipo-proj').value;
+      if(tipo==='direta'){
+        STATE.meta.equipe = document.getElementById('sm-direta-equipe')?.value || null;
+        STATE.proposal.equipe = STATE.meta.equipe;
+      }
+      if(tipo==='mae'){
+        STATE.meta.equipe_focal = document.getElementById('sm-equipe-focal')?.value || null;
+        if(!STATE.meta.equipe_focal){ toast('Selecione a equipe focal da proposta mãe','err'); return; }
+      }
       if(!isEq){
         STATE.meta.fomentos = [...document.getElementById('sm-fomento').selectedOptions].map(o=>o.value);
         FOMENTO.syncMeta(STATE.meta);
       }
-      
+
       this._ensureDB();
       STATE.proposal.id = smId; STATE.proposal.id_base = STATE.proposal.id_base || smId;
       STATE.proposal.elaborado_por = document.getElementById('sm-elab').value.trim();
       STATE.proposal.email_elaborador = document.getElementById('sm-email-elab').value.trim();
+      STATE.proposal.lider_tecnico = document.getElementById('sm-lt').value.trim();
+      STATE.proposal.email_lider_tecnico = document.getElementById('sm-email-lt').value.trim().toLowerCase();
       const _aprovSel = document.getElementById('sm-aprov-sel');
       const _aprovOpt = _aprovSel?.selectedOptions?.[0];
       STATE.proposal.email_aprovador = _aprovSel?.value || '';
       STATE.proposal.responsavel_aprovacao = _aprovOpt?.dataset?.nome || '';
       if(!STATE.proposal.criado_em) STATE.proposal.criado_em = this.now();
-      
+
       const rec = this._snapshot();
       this._data.proposals[smId] = rec;
       this._data.updated_at = this.now();
-      
+
       document.getElementById('save-modal').style.display='none';
       toast(`Proposta ${smId} salva!`, 'ok');
       this.renderStats(); this._updateWorkflowBar(); UI.renderAll(); TEAM._refreshSwitcher();
