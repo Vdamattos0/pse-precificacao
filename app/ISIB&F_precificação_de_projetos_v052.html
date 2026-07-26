@@ -1805,6 +1805,10 @@ input[type=radio]:checked + .tipo-prop-card .tipo-prop-icon{color:var(--gold-dee
         <svg class="icn icn-sm" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
         Equipe &amp; Acesso
       </button>
+      <button class="btn btn-ghost btn-sm" id="btn-duplicate-proposal" onclick="DB.duplicateCurrentProposal();UI.closeUserMenu()" style="display:none" title="Duplicar proposta atual">
+        <svg class="icn icn-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>
+        Duplicar proposta atual
+      </button>
       <button class="btn btn-ghost btn-sm" id="btn-delete-proposal" onclick="DB.deleteCurrentProposal();UI.closeUserMenu()" style="display:none;color:var(--neg)" title="Excluir proposta atual">
         <svg class="icn icn-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Excluir proposta atual
@@ -3191,6 +3195,10 @@ const AUTH = {
     // Menu do usuário: todos os usuários podem abrir Equipe & Acesso da proposta atual
     const btnAddTeam = document.getElementById('btn-add-team');
     if(btnAddTeam) btnAddTeam.style.display = this._user ? '' : 'none';
+
+    const btnDup = document.getElementById('btn-duplicate-proposal');
+    const canDuplicate = !!(STATE.proposal?.id && STATE.proposal?.tipo_proposta !== 'equipe' && (this.canEdit() || this.canManageUsers() || this._user?.papel_global === 'dev-II'));
+    if(btnDup) btnDup.style.display = canDuplicate ? '' : 'none';
 
     const btnDel = document.getElementById('btn-delete-proposal');
     const isDev = this._user?.papel_global === 'dev-II';
@@ -10333,6 +10341,125 @@ const DB = {
       atualizado_em:null,state_base:null,item_comentarios:{},colaboradores:[]};
   },
 
+  _duplicateRecord(rec, ctx={}){
+    const now = this.now();
+    const copy = JSON.parse(JSON.stringify(rec||{}));
+    const sourceId = ctx.sourceId || rec?.id || '';
+    const newId = ctx.newId || copy.id;
+    const newMaeId = ctx.newMaeId || null;
+    const isEquipe = (copy.tipo_proposta || copy.state?.meta?.tipo_proposta) === 'equipe';
+    const team = ctx.team || copy.equipe || copy.state?.meta?.equipe || null;
+    const rootTitle = ctx.rootTitle || copy.state?.meta?.titulo || '';
+    const title = isEquipe && team ? `${rootTitle} — ${team}` : rootTitle;
+
+    copy.id = newId;
+    copy.id_base = newId;
+    copy.revisao_numero = 0;
+    copy.status = 'em_elaboracao';
+    copy.id_mae = isEquipe ? newMaeId : null;
+    copy.comentario_aprovador = '';
+    copy.criado_em = now;
+    copy.atualizado_em = now;
+    copy.updated_at = now;
+    copy.updated_by = AUTH.currentUser()?.email || copy.email_elaborador || 'usuario_local';
+    copy.state_base = null;
+    copy.item_comentarios = {};
+    copy.historico = [{
+      acao:'duplicacao',
+      rubrica:null,
+      item_id:null,
+      descricao:`Duplicada a partir de ${sourceId}`,
+      por:AUTH.currentUser()?.email || '',
+      em:now,
+      revisao:0
+    }];
+
+    copy.state = copy.state || {};
+    copy.state.meta = {...(copy.state.meta||{})};
+    copy.state.meta.titulo = title;
+    copy.state.meta.id_mae = isEquipe ? newMaeId : null;
+    copy.state.meta.tipo_proposta = copy.tipo_proposta || copy.state.meta.tipo_proposta || 'direta';
+    if(!isEquipe) copy.state.meta.equipe_focal = copy.state.meta.equipe_focal || null;
+    return copy;
+  },
+
+  async duplicateCurrentProposal(){
+    if(!STATE.proposal?.id) return toast('Nenhuma proposta aberta para duplicar.', 'warn');
+    if(STATE.proposal?.tipo_proposta === 'equipe') return toast('Abra a proposta principal para duplicar o projeto.', 'warn');
+    if(!AUTH.canEdit() && !AUTH.canManageUsers() && AUTH.currentUser()?.papel_global !== 'dev-II'){
+      return toast('Sem permissão para duplicar esta proposta.', 'err');
+    }
+
+    this._ensureDB();
+    const sourceId = STATE.proposal.id;
+    const sourceTitle = STATE.meta?.titulo || 'Sem título';
+    const msg = STATE.proposal.tipo_proposta === 'mae'
+      ? `Duplicar a proposta ${sourceId} com todas as subequipes?`
+      : `Duplicar a proposta ${sourceId}?`;
+    const ok = await CONFIRM.open('Duplicar proposta', msg);
+    if(!ok) return false;
+
+    try{
+      const sourceRoot = this._snapshot();
+      this._data.proposals[sourceId] = sourceRoot;
+
+      const targetDb = this._data;
+      const newId = this.nextId();
+      const newTitle = `${sourceTitle} (Cópia)`;
+      const duplicatedRoot = this._duplicateRecord(sourceRoot, {
+        sourceId,
+        newId,
+        rootTitle:newTitle
+      });
+      targetDb.proposals[newId] = duplicatedRoot;
+
+      let duplicatedCount = 1;
+      if(sourceRoot.tipo_proposta === 'mae'){
+        const children = Object.values(targetDb.proposals||{})
+          .filter(rec => rec.id_mae === sourceId && rec.tipo_proposta === 'equipe');
+        children.forEach(child=>{
+          const team = child.equipe || child.state?.meta?.equipe || '';
+          const childId = `${newId}-${team}`;
+          targetDb.proposals[childId] = this._duplicateRecord(child, {
+            sourceId:child.id,
+            newId:childId,
+            newMaeId:newId,
+            team,
+            rootTitle:newTitle
+          });
+          duplicatedCount++;
+        });
+      }
+
+      const now = this.now();
+      const user = AUTH.currentUser()?.email || 'usuario_local';
+      targetDb.updated_at = now;
+      targetDb.last_saved_at = now;
+      targetDb.last_saved_by = user;
+      targetDb.db_revision = (Number(targetDb.db_revision || targetDb.db_version || 0) || 0) + 1;
+      targetDb.db_version = Math.max(Number(targetDb.db_version||0)+1, targetDb.db_revision);
+
+      this._data = targetDb;
+      this._loadedVersion = targetDb.db_version || targetDb.db_revision || this._loadedVersion;
+      this.loadProposal(newId);
+      this.markDirty('Duplicar proposta');
+
+      if(FILE_DB.isActive() || SPDB.isConfigured()){
+        await this.saveCurrentToSharedDb('Duplicar proposta');
+      }
+
+      this._captureLoadedSnapshot();
+      this.renderList();
+      this.renderStats();
+      this._updateWorkflowBar();
+      AUTH.applyPermissions();
+      toast(`Proposta duplicada: ${newId}${duplicatedCount>1?` (${duplicatedCount} registros)` : ''}.`, 'ok', 7000);
+      return true;
+    }catch(err){
+      toast('Falha ao duplicar proposta: '+(err.message||err), 'err', 9000);
+      return false;
+    }
+  },
   async deleteCurrentProposal(){
     const isDev = AUTH.currentUser()?.papel_global === 'dev-II';
     if(!AUTH.canManageUsers() && !isDev) return toast('Somente gestores ou desenvolvedores podem excluir propostas.', 'err');
