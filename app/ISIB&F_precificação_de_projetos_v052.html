@@ -3682,13 +3682,6 @@ const BEST_PRACTICES = {
     const tipo=st.meta?.tipo_proposta||proposal.tipo_proposta||'direta';
     const equipe=APPROVERS.routingTeam(st.meta||{},proposal);
     if(String(equipe||'').toUpperCase()!=='ESP'||!['direta','equipe'].includes(tipo)) return {reds,yellows};
-    const meses=Math.max(1,+st.meta?.duracao||1);
-    const ticket=(calc.totalFin||0)/meses;
-    if(ticket<42000){
-      reds.push({sec:'sec-config',msg:`Boa prática ESP: ticket médio financeiro mensal de ${fmt_r(ticket)} não paga a referência de folha de pesquisadores (R$ 42.000,00). Aumente o valor financeiro.`});
-    }else if(ticket<60000){
-      yellows.push({sec:'sec-config',msg:`Boa prática ESP: ticket médio financeiro mensal de ${fmt_r(ticket)} está abaixo de R$ 60.000,00. Verifique se a precificação está correta.`});
-    }
     const software=(calc.soft_fin||0)+(calc.soft_eco||0);
     const pessoal=(calc.pTec_fin||0)+(calc.pTec_eco||0)+(calc.pAdm_fin||0)+(calc.pAdm_eco||0);
     if(!st.soft?.length||software<=0){
