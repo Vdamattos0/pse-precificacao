@@ -65,7 +65,8 @@ const context = {
   },
   DATA: {
     approvers: [
-      { nome: 'Leonardo Teixeira', equipe: 'CIN,ESP', email: 'lvteixeira@firjan.com.br', papel: 'gestor', ativo: true }
+      { nome: 'Leonardo Teixeira', equipe: 'CIN,ESP', email: 'lvteixeira@firjan.com.br', papel: 'gestor', ativo: true },
+      { nome: 'York Castillo Santiago', equipe: 'ESP', email: 'ysantiago@firjan.com.br', papel: 'gestor', ativo: true }
     ]
   }
 };
